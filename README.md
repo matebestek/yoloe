@@ -9,10 +9,10 @@ Official PyTorch implementation of **YOLOE**.
 
 [YOLOE: Real-Time Seeing Anything](https://arxiv.org/abs/2503.07465).\
 Ao Wang*, Lihao Liu*, Hui Chen, Zijia Lin, Jungong Han, and Guiguang Ding\
-[![arXiv](https://img.shields.io/badge/arXiv-2503.07465-b31b1b.svg)](https://arxiv.org/abs/2503.07465) [![Hugging Face Models](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Models-blue)](https://huggingface.co/jameslahm/yoloe/tree/main) [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/jameslahm/yoloe) [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/roboflow-ai/notebooks/blob/main/notebooks/zero-shot-object-detection-and-segmentation-with-yoloe.ipynb)
+[![arXiv](https://img.shields.io/badge/arXiv-2503.07465-b31b1b.svg)](https://arxiv.org/abs/2503.07465) [![Hugging Face Models](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Models-blue)](https://huggingface.co/jameslahm/yoloe/tree/main) [![Hugging Face Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/jameslahm/yoloe) [![Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/roboflow-ai/notebooks/blob/main/notebooks/zero-shot-object-detection-and-segmentation-with-yoloe.ipynb) [![Hugging Face Collection](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Collection-blue)](https://huggingface.co/collections/jameslahm/yoloe-67d5110aabaefbe129c15917)
 
 
-We introduce **YOLOE(ye)**, a highly **efficient**, **unified**, and **open** object detection and segmentation model, like human eye, under different prompt mechanisms, like *texts*, *visual inputs*, and *prompt-free paradigm*.
+We introduce **YOLOE(ye)**, a highly **efficient**, **unified**, and **open** object detection and segmentation model, like human eye, under different prompt mechanisms, like *texts*, *visual inputs*, and *prompt-free paradigm*, with **zero inference and transferring overhead** compared with closed-set YOLOs.
 
 <!-- <p align="center">
   <img src="figures/pipeline.svg" width=96%> <br>
@@ -138,20 +138,45 @@ python app.py
 pip install huggingface-hub==0.26.3
 huggingface-cli download jameslahm/yoloe yoloe-v8l-seg.pt --local-dir pretrain
 ```
+For yoloe-(v8s/m/l)/(11s/m/l)-seg, Models can also be automatically downloaded using `from_pretrained`.
+```python
+from ultralytics import YOLOE
+model = YOLOE.from_pretrained("jameslahm/yoloe-v8l-seg")
+```
 
 ### Text prompt
 ```bash
-python predict.py
+python predict_text_prompt.py \
+    --source ultralytics/assets/bus.jpg \
+    --checkpoint pretrain/yoloe-v8l-seg.pt \
+    --names person dog cat \
+    --device cuda:0
 ```
 
 ### Visual prompt
 ```bash
-python predict_vp.py
+python predict_visual_prompt.py
 ```
 
 ### Prompt free
 ```bash
-python predict_pf.py
+python predict_prompt_free.py
+```
+
+## Transferring
+After pretraining, YOLOE-v8 / YOLOE-11 can be re-parameterized into the same architecture as YOLOv8 / YOLO11, with **zero overhead for transferring**.
+
+### Linear probing
+Only the last conv, ie., the prompt embedding, is trainable.
+```bash
+python train_pe.py
+```
+
+### Full tuning
+All parameters are trainable, for better performance.
+```bash
+# For models with s scale, please change the epochs to 160 for longer training
+python train_pe_all.py
 ```
 
 ## Validation
@@ -237,7 +262,7 @@ python train_seg.py
 
 ### Visual prompt
 ```bash
-# For visual prompt, because only SAVPE is trained, we can adopt the detection pipleline with less training time
+# For visual prompt, because only SAVPE is trained, we can adopt the detection pipeline with less training time
 
 # First, obtain the detection model
 python tools/convert_segm2det.py
@@ -252,31 +277,15 @@ python train_vp.py
 # Generate LVIS with single class for evaluation during training
 python tools/generate_lvis_sc.py
 
-# Similar to visual prompt, because only the specialized prompt embedding is trained, we can adopt the detection pipleline with less training time
+# Similar to visual prompt, because only the specialized prompt embedding is trained, we can adopt the detection pipeline with less training time
 python tools/convert_segm2det.py
 python train_pe_free.py
 # After training, please use tools/get_pf_free_segm.py to add the segmentation head
 # python tools/get_pf_free_segm.py
 ```
 
-## Transferring
-After pretraining, YOLOE-v8 / YOLOE-11 can be re-parameterized into the same architecture as YOLOv8 / YOLO11, with **zero overhead** for transferring.
-
-### Linear probing
-Only the last conv, ie., the prompt embedding, is trainable.
-```bash
-python train_pe.py
-```
-
-### Full tuning
-All parameters are trainable, for better performance.
-```bash
-# For models with s scale, please change the epochs to 160 for longer training
-python train_pe_all.py
-```
-
 ## Export
-After re-parameterization, YOLOE-v8 / YOLOE-11 can be exported into the identical format as YOLOv8 / YOLO11.
+After re-parameterization, YOLOE-v8 / YOLOE-11 can be exported into the identical format as YOLOv8 / YOLO11, with **zero overhead for inference**.
 ```bash
 pip install onnx coremltools onnxslim
 python export.py
